@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'member-elite-portal-v3';
+const CACHE_NAME = 'member-elite-portal-v5';
 
 const APP_SHELL = [
   './',
@@ -21,7 +21,9 @@ const APP_SHELL = [
   './day-modal-elite.js',
   './payin-modal-filter.js',
   './rep-on-demand.js',
+  './pdf-library.js',
   './pwa-install.js',
+  './pwa-notifications.js',
   './manifest.json',
   './icon.svg',
   './maskable-icon.svg'
@@ -89,6 +91,46 @@ self.addEventListener('fetch', event => {
           status: 408,
           statusText: 'Offline'
         }));
+    })
+  );
+});
+
+self.addEventListener('message', event => {
+  const data = event.data || {};
+
+  if (data.type !== 'SHOW_NOTIFICATION') return;
+
+  self.registration.showNotification(data.title || 'Member Elite', {
+    body: data.body || 'New Member Elite alert',
+    icon: './icon.svg',
+    badge: './maskable-icon.svg',
+    tag: data.tag || 'member-elite-alert',
+    renotify: true,
+    data: {
+      url: data.url || './'
+    },
+    actions: [
+      { action: 'open', title: 'Open app' }
+    ]
+  });
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+
+  const targetUrl = new URL(event.notification.data?.url || './', self.location.origin).href;
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          client.navigate(targetUrl);
+          return client.focus();
+        }
+      }
+
+      if (clients.openWindow) return clients.openWindow(targetUrl);
+      return null;
     })
   );
 });
