@@ -6,14 +6,14 @@
 
   const PDF_DOCUMENTS = [
     {
-      title: 'Monday - Friday Summer Duties',
-      url: 'pdfs/M - F Summer Holidays.pdf',
-      note: 'Add this PDF file to your project under pdfs/driver-handbook.pdf'
+      title: 'Summer Duties - Monday to Friday',
+      url: './M - F Summer Holidays.pdf',
+      note: 'Stored in the main project directory'
     },
     {
       title: 'Pay Notes',
-      url: 'pdfs/pay-notes.pdf',
-      note: 'Add this PDF file to your project under pdfs/pay-notes.pdf'
+      url: './pay-notes.pdf',
+      note: 'Stored in the main project directory'
     }
   ];
 
@@ -232,7 +232,7 @@
       list.innerHTML = `
         <div class="pdf-library-empty">
           No PDFs configured yet.<br>
-          Add PDF files to the project and list them in pdf-library.js.
+          Add PDF files beside index.html and list them in pdf-library.js.
         </div>
       `;
       return;
