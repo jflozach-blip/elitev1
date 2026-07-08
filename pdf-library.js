@@ -7,7 +7,7 @@
   const PDF_DOCUMENTS = [
     {
       title: 'Monday - Friday Summer Duties',
-      url: 'pdfs/driver-handbook.pdf',
+      url: 'pdfs/M - F Summer Holidays.pdf',
       note: 'Add this PDF file to your project under pdfs/driver-handbook.pdf'
     },
     {
