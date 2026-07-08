@@ -1,6 +1,7 @@
 'use strict';
 
-const CACHE_NAME = 'member-elite-portal-v2';
+const CACHE_NAME = 'member-elite-portal-v3';
+
 const APP_SHELL = [
   './',
   './index.html',
@@ -29,7 +30,7 @@ const APP_SHELL = [
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(APP_SHELL))
+      .then(cache => Promise.allSettled(APP_SHELL.map(url => cache.add(url))))
       .then(() => self.skipWaiting())
   );
 });
@@ -47,30 +48,47 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
+  const requestUrl = new URL(event.request.url);
+
+  if (requestUrl.origin !== self.location.origin) return;
+
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put('./', copy));
+          return response;
+        })
+        .catch(() =>
+          caches.match('./')
+            .then(cachedRoot => cachedRoot || caches.match('./index.html'))
+            .then(cachedPage => cachedPage || new Response('App unavailable offline', {
+              status: 503,
+              headers: { 'Content-Type': 'text/plain' }
+            }))
+        )
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
 
       return fetch(event.request)
         .then(response => {
-          const copy = response.clone();
-
-          if (response.ok && new URL(event.request.url).origin === self.location.origin) {
+          if (response.ok) {
+            const copy = response.clone();
             caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
           }
 
           return response;
         })
-        .catch(() => {
-          if (event.request.mode === 'navigate') {
-            return caches.match('./index.html');
-          }
-
-          return new Response('', {
-            status: 408,
-            statusText: 'Offline'
-          });
-        });
+        .catch(() => new Response('', {
+          status: 408,
+          statusText: 'Offline'
+        }));
     })
   );
 });
