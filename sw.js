@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'member-elite-portal-v5';
+const CACHE_NAME = 'member-elite-portal-v8';
 
 const APP_SHELL = [
   './',
@@ -40,9 +40,7 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(
-        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
-      ))
+      .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
@@ -51,53 +49,26 @@ self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
   const requestUrl = new URL(event.request.url);
-
   if (requestUrl.origin !== self.location.origin) return;
 
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put('./', copy));
-          return response;
-        })
-        .catch(() =>
-          caches.match('./')
-            .then(cachedRoot => cachedRoot || caches.match('./index.html'))
-            .then(cachedPage => cachedPage || new Response('App unavailable offline', {
-              status: 503,
-              headers: { 'Content-Type': 'text/plain' }
-            }))
-        )
-    );
-    return;
-  }
-
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-
-      return fetch(event.request)
-        .then(response => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
-          }
-
-          return response;
-        })
-        .catch(() => new Response('', {
-          status: 408,
-          statusText: 'Offline'
-        }));
-    })
+    fetch(event.request)
+      .then(response => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        }
+        return response;
+      })
+      .catch(() =>
+        caches.match(event.request)
+          .then(cached => cached || caches.match('./index.html'))
+      )
   );
 });
 
 self.addEventListener('message', event => {
   const data = event.data || {};
-
   if (data.type !== 'SHOW_NOTIFICATION') return;
 
   self.registration.showNotification(data.title || 'Member Elite', {
@@ -106,12 +77,8 @@ self.addEventListener('message', event => {
     badge: './maskable-icon.svg',
     tag: data.tag || 'member-elite-alert',
     renotify: true,
-    data: {
-      url: data.url || './'
-    },
-    actions: [
-      { action: 'open', title: 'Open app' }
-    ]
+    data: { url: data.url || './' },
+    actions: [{ action: 'open', title: 'Open app' }]
   });
 });
 
