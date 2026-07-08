@@ -5,6 +5,10 @@
   pwaInstallScript.src = 'pwa-install.js';
   document.head.appendChild(pwaInstallScript);
 
+  const pwaNotificationsScript = document.createElement('script');
+  pwaNotificationsScript.src = 'pwa-notifications.js';
+  document.head.appendChild(pwaNotificationsScript);
+
   const eliteToolsStyle = document.createElement('link');
   eliteToolsStyle.rel = 'stylesheet';
   eliteToolsStyle.href = 'elite-tools.css';
@@ -45,4 +49,8 @@
   const repOnDemandScript = document.createElement('script');
   repOnDemandScript.src = 'rep-on-demand.js';
   document.head.appendChild(repOnDemandScript);
+
+  const pdfLibraryScript = document.createElement('script');
+  pdfLibraryScript.src = 'pdf-library.js';
+  document.head.appendChild(pdfLibraryScript);
 })();
