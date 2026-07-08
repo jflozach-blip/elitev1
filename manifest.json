@@ -2,7 +2,7 @@
   "name": "Member Elite Portal",
   "short_name": "Member Elite",
   "description": "Personal driver pay, rota, pay-in and weekly tracker.",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
@@ -11,13 +11,13 @@
   "categories": ["productivity", "utilities"],
   "icons": [
     {
-      "src": "icon.svg",
+      "src": "./icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "maskable-icon.svg",
+      "src": "./maskable-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "maskable"
@@ -27,7 +27,7 @@
     {
       "name": "Open tracker",
       "short_name": "Tracker",
-      "url": "./index.html",
+      "url": "./",
       "description": "Open Member Elite Portal"
     },
     {
