@@ -1,60 +1,66 @@
 'use strict';
 
-(function initElitePdfLibrary() {
-  if (window.__elitePdfLibraryLoaded) return;
-  window.__elitePdfLibraryLoaded = true;
+(function initSimplePdfLibrary() {
+  if (window.__simplePdfLibraryLoaded) return;
+  window.__simplePdfLibraryLoaded = true;
 
   const PDF_DOCUMENTS = [
     {
-      title: 'Summer Duties - Monday to Friday',
-      url: './M - F Summer holidays.pdf',
-      note: 'Stored in the main project directory'
+      title: 'Driver Handbook',
+      file: 'driver-handbook.pdf'
     },
     {
       title: 'Pay Notes',
-      url: './pay-notes.pdf',
-      note: 'Stored in the main project directory'
+      file: 'pay-notes.pdf'
     }
   ];
 
   const PDFJS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-  const PDFJS_WORKER_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-  let currentPdfUrl = PDF_DOCUMENTS[0]?.url || '';
-  let currentPdfTitle = PDF_DOCUMENTS[0]?.title || '';
+  let selectedPdf = PDF_DOCUMENTS[0] || null;
   let pdfJsPromise = null;
-  let renderToken = 0;
-  let zoom = 1.15;
+  let renderId = 0;
+  let zoom = 1;
+
+  function pdfUrl(doc) {
+    return `./${doc.file}`;
+  }
+
+  function escapeHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, char => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[char]));
+  }
 
   function addStyle() {
-    if (document.getElementById('elitePdfLibraryStyles')) return;
+    if (document.getElementById('simplePdfLibraryStyles')) return;
 
     const style = document.createElement('style');
-    style.id = 'elitePdfLibraryStyles';
+    style.id = 'simplePdfLibraryStyles';
     style.textContent = `
       .pdf-library-modal {
         width: min(1100px, 100%);
         height: min(94dvh, 900px);
-        background:
-          radial-gradient(circle at 12% 0%, rgba(96,165,250,.28), transparent 36%),
-          radial-gradient(circle at 92% 10%, rgba(250,204,21,.12), transparent 34%),
-          linear-gradient(180deg, #07101f, #020817) !important;
-        border: 1px solid rgba(147,197,253,.40) !important;
-        box-shadow: 0 0 52px rgba(37,99,235,.34), inset 0 1px 0 rgba(255,255,255,.08) !important;
+        background: linear-gradient(180deg, #07101f, #020817) !important;
+        border: 1px solid rgba(147,197,253,.38) !important;
       }
 
       .pdf-library-body {
         display: grid;
-        grid-template-columns: 280px 1fr;
+        grid-template-columns: 260px 1fr;
         gap: 12px;
         min-height: 0;
         height: 100%;
       }
 
       .pdf-library-list,
-      .pdf-library-viewer {
+      .pdf-library-view {
         min-height: 0;
-        border-radius: 22px;
+        border-radius: 18px;
         background: rgba(15,23,42,.72);
         border: 1px solid rgba(147,197,253,.18);
         overflow: hidden;
@@ -69,43 +75,30 @@
       }
 
       .pdf-library-item {
-        display: grid;
-        gap: 5px;
-        width: 100%;
-        min-height: 70px;
-        padding: 11px;
-        border-radius: 16px;
+        padding: 12px;
+        min-height: 62px;
+        border-radius: 14px;
         border: 1px solid rgba(147,197,253,.22);
-        background: linear-gradient(180deg, rgba(15,23,42,.96), rgba(2,6,23,.88));
+        background: #071225;
         color: #f8fafc;
-        cursor: pointer;
+        font-weight: 1000;
         text-align: left;
+        cursor: pointer;
       }
 
       .pdf-library-item.active {
-        border-color: rgba(134,239,172,.48);
-        background: linear-gradient(180deg, rgba(20,83,45,.38), rgba(2,6,23,.88));
+        border-color: rgba(34,197,94,.55);
+        background: rgba(20,83,45,.35);
       }
 
-      .pdf-library-item strong {
-        font-weight: 1000;
-      }
-
-      .pdf-library-item span {
-        color: #93c5fd;
-        font-size: .74rem;
-        font-weight: 850;
-        line-height: 1.3;
-      }
-
-      .pdf-library-viewer {
+      .pdf-library-view {
         display: grid;
         grid-template-rows: auto 1fr;
       }
 
       .pdf-library-toolbar {
         display: grid;
-        grid-template-columns: 1fr auto auto auto;
+        grid-template-columns: 1fr auto auto auto auto;
         gap: 8px;
         align-items: center;
         padding: 10px;
@@ -120,24 +113,20 @@
         white-space: nowrap;
       }
 
-      .pdf-library-toolbar button {
+      .pdf-library-toolbar button,
+      .pdf-library-toolbar a {
         min-height: 40px;
-        border-radius: 14px;
+        border-radius: 12px;
         border: 1px solid rgba(147,197,253,.30);
-        background: linear-gradient(180deg, rgba(37,99,235,.32), rgba(15,23,42,.86));
+        background: rgba(37,99,235,.28);
         color: #dbeafe;
         font-weight: 1000;
         cursor: pointer;
-        padding: 8px 12px;
+        padding: 9px 12px;
+        text-decoration: none;
       }
 
-      #openPdfLibraryTabBtn {
-        border-color: rgba(134,239,172,.40);
-        background: linear-gradient(180deg, rgba(34,197,94,.32), rgba(20,83,45,.82));
-        color: #dcfce7;
-      }
-
-      .pdf-library-canvas-viewer {
+      .pdf-pages {
         min-height: 0;
         height: 100%;
         overflow: auto;
@@ -162,29 +151,24 @@
       .pdf-page canvas {
         max-width: 100%;
         height: auto !important;
-        border-radius: 12px;
+        border-radius: 10px;
         background: #fff;
-        box-shadow: 0 14px 34px rgba(0,0,0,.38);
+        box-shadow: 0 12px 28px rgba(0,0,0,.38);
       }
 
-      .pdf-library-empty {
+      .pdf-message {
+        min-height: 54dvh;
         display: grid;
         place-items: center;
-        min-height: 560px;
-        padding: 18px;
+        text-align: center;
         color: #bfdbfe;
         font-weight: 1000;
-        text-align: center;
         line-height: 1.45;
+        padding: 18px;
       }
 
-      .pdf-library-error {
+      .pdf-error {
         color: #fecaca;
-      }
-
-      #openPdfLibraryBtn .shell-icon {
-        background: rgba(37,99,235,.18) !important;
-        border-color: rgba(147,197,253,.34) !important;
       }
 
       @media (max-width: 760px) {
@@ -196,7 +180,7 @@
         .pdf-library-modal {
           width: 100%;
           height: 92dvh;
-          border-radius: 28px 28px 0 0 !important;
+          border-radius: 26px 26px 0 0 !important;
           border-left: 0 !important;
           border-right: 0 !important;
           border-bottom: 0 !important;
@@ -209,7 +193,7 @@
 
         .pdf-library-list {
           grid-auto-flow: column;
-          grid-auto-columns: minmax(210px, 1fr);
+          grid-auto-columns: minmax(190px, 1fr);
           overflow-x: auto;
           overflow-y: hidden;
         }
@@ -218,35 +202,18 @@
           grid-template-columns: 1fr auto auto;
         }
 
-        #openPdfLibraryTabBtn {
-          grid-column: 1 / -1;
-        }
-
-        .pdf-library-canvas-viewer,
-        .pdf-library-empty {
-          min-height: 58dvh;
+        #pdfOpenLink,
+        #pdfDownloadLink {
+          grid-column: span 1;
         }
       }
     `;
+
     document.head.appendChild(style);
   }
 
-  function escapeHtml(value) {
-    return String(value || '').replace(/[&<>"']/g, char => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;'
-    }[char]));
-  }
-
   function loadPdfJs() {
-    if (window.pdfjsLib) {
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
-      return Promise.resolve(window.pdfjsLib);
-    }
-
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
     if (pdfJsPromise) return pdfJsPromise;
 
     pdfJsPromise = new Promise((resolve, reject) => {
@@ -254,14 +221,13 @@
       script.src = PDFJS_URL;
       script.onload = () => {
         if (!window.pdfjsLib) {
-          reject(new Error('PDF.js failed to load'));
+          reject(new Error('PDF.js did not load'));
           return;
         }
 
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
         resolve(window.pdfjsLib);
       };
-      script.onerror = () => reject(new Error('PDF.js could not be loaded'));
+      script.onerror = () => reject(new Error('Could not load PDF.js'));
       document.head.appendChild(script);
     });
 
@@ -280,22 +246,24 @@
     backdrop.innerHTML = `
       <div class="modal pdf-library-modal" role="dialog" aria-modal="true" aria-labelledby="pdfLibraryTitle">
         <div class="modal-head">
-          <div class="modal-title" id="pdfLibraryTitle">Elite PDF Library</div>
+          <div class="modal-title" id="pdfLibraryTitle">PDF Library</div>
           <button id="closePdfLibraryBtn" type="button">✕</button>
         </div>
 
         <div class="pdf-library-body">
           <div class="pdf-library-list" id="pdfLibraryList"></div>
 
-          <div class="pdf-library-viewer">
+          <div class="pdf-library-view">
             <div class="pdf-library-toolbar">
-              <div class="pdf-library-title" id="pdfLibraryCurrentTitle">Select a PDF</div>
+              <div class="pdf-library-title" id="pdfCurrentTitle">Select a PDF</div>
               <button id="pdfZoomOutBtn" type="button">−</button>
               <button id="pdfZoomInBtn" type="button">+</button>
-              <button id="openPdfLibraryTabBtn" type="button">Open tab</button>
+              <a id="pdfOpenLink" href="#" target="_blank" rel="noopener">Open</a>
+              <a id="pdfDownloadLink" href="#" download>Download</a>
             </div>
-            <div id="pdfLibraryFrameWrap" class="pdf-library-canvas-viewer">
-              <div class="pdf-library-empty">Select a PDF to view it here.</div>
+
+            <div id="pdfPages" class="pdf-pages">
+              <div class="pdf-message">Select a PDF to view it here.</div>
             </div>
           </div>
         </div>
@@ -305,7 +273,6 @@
     document.body.appendChild(backdrop);
 
     document.getElementById('closePdfLibraryBtn')?.addEventListener('click', closePdfLibrary);
-    document.getElementById('openPdfLibraryTabBtn')?.addEventListener('click', openCurrentPdfTab);
     document.getElementById('pdfZoomOutBtn')?.addEventListener('click', () => changeZoom(-0.15));
     document.getElementById('pdfZoomInBtn')?.addEventListener('click', () => changeZoom(0.15));
 
@@ -314,59 +281,92 @@
     });
   }
 
-  function renderPdfList() {
+  function renderList() {
     const list = document.getElementById('pdfLibraryList');
     if (!list) return;
 
-    if (!PDF_DOCUMENTS.length) {
-      list.innerHTML = `
-        <div class="pdf-library-empty">
-          No PDFs configured yet.<br>
-          Add PDF files beside index.html and list them in pdf-library.js.
-        </div>
-      `;
-      return;
-    }
-
     list.innerHTML = PDF_DOCUMENTS.map((doc, index) => `
-      <button class="pdf-library-item ${doc.url === currentPdfUrl ? 'active' : ''}" type="button" data-pdf-index="${index}">
-        <strong>${escapeHtml(doc.title)}</strong>
-        <span>${escapeHtml(doc.note || doc.url)}</span>
+      <button class="pdf-library-item ${selectedPdf === doc ? 'active' : ''}" type="button" data-pdf-index="${index}">
+        ${escapeHtml(doc.title)}
       </button>
     `).join('');
 
     list.querySelectorAll('[data-pdf-index]').forEach(button => {
       button.addEventListener('click', () => {
-        const doc = PDF_DOCUMENTS[Number(button.dataset.pdfIndex)];
-        if (doc) selectPdf(doc);
+        selectedPdf = PDF_DOCUMENTS[Number(button.dataset.pdfIndex)];
+        renderList();
+        renderSelectedPdf();
       });
     });
   }
 
-  async function renderPdfDocument(doc) {
-    const wrap = document.getElementById('pdfLibraryFrameWrap');
-    if (!wrap) return;
+  async function fetchPdfBytes(url) {
+    const response = await fetch(url, { cache: 'no-store' });
 
-    const token = ++renderToken;
-    wrap.innerHTML = `<div class="pdf-library-empty">Loading PDF…</div>`;
+    if (!response.ok) {
+      throw new Error(`File not found or not served: ${url}`);
+    }
+
+    const buffer = await response.arrayBuffer();
+    const firstBytes = new Uint8Array(buffer.slice(0, 4));
+    const signature = String.fromCharCode(...firstBytes);
+
+    if (signature !== '%PDF') {
+      throw new Error(`This file is not being served as a PDF: ${url}`);
+    }
+
+    return buffer;
+  }
+
+  async function renderSelectedPdf() {
+    const pages = document.getElementById('pdfPages');
+    const title = document.getElementById('pdfCurrentTitle');
+    const openLink = document.getElementById('pdfOpenLink');
+    const downloadLink = document.getElementById('pdfDownloadLink');
+
+    if (!pages || !selectedPdf) return;
+
+    const url = pdfUrl(selectedPdf);
+    const currentRender = ++renderId;
+
+    if (title) title.textContent = selectedPdf.title;
+    if (openLink) openLink.href = url;
+    if (downloadLink) {
+      downloadLink.href = url;
+      downloadLink.download = selectedPdf.file;
+    }
+
+    pages.innerHTML = `<div class="pdf-message">Loading PDF…</div>`;
 
     try {
-      const pdfjsLib = await loadPdfJs();
-      const pdf = await pdfjsLib.getDocument(doc.url).promise;
+      const [pdfjsLib, pdfBytes] = await Promise.all([
+        loadPdfJs(),
+        fetchPdfBytes(url)
+      ]);
 
-      if (token !== renderToken) return;
+      if (currentRender !== renderId) return;
 
-      wrap.innerHTML = '';
+      const pdf = await pdfjsLib.getDocument({
+        data: pdfBytes,
+        disableWorker: true
+      }).promise;
+
+      if (currentRender !== renderId) return;
+
+      pages.innerHTML = '';
 
       for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-        if (token !== renderToken) return;
+        if (currentRender !== renderId) return;
 
         const page = await pdf.getPage(pageNumber);
-        const viewport = page.getViewport({ scale: zoom });
-        const dpr = window.devicePixelRatio || 1;
+        const baseViewport = page.getViewport({ scale: 1 });
+        const availableWidth = Math.max(280, pages.clientWidth - 32);
+        const scale = Math.min(2.4, Math.max(0.5, (availableWidth / baseViewport.width) * zoom));
+        const viewport = page.getViewport({ scale });
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-        const pageWrap = document.createElement('div');
-        pageWrap.className = 'pdf-page';
+        const wrapper = document.createElement('div');
+        wrapper.className = 'pdf-page';
 
         const label = document.createElement('div');
         label.className = 'pdf-page-label';
@@ -382,49 +382,27 @@
 
         context.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-        pageWrap.appendChild(label);
-        pageWrap.appendChild(canvas);
-        wrap.appendChild(pageWrap);
+        wrapper.appendChild(label);
+        wrapper.appendChild(canvas);
+        pages.appendChild(wrapper);
 
         await page.render({ canvasContext: context, viewport }).promise;
       }
     } catch (error) {
-      wrap.innerHTML = `
-        <div class="pdf-library-empty pdf-library-error">
-          This PDF could not be rendered inside the mobile viewer.<br><br>
-          Check that the file exists in the main directory:<br>
-          <strong>${escapeHtml(doc.url)}</strong><br><br>
-          You can still use <strong>Open tab</strong>.
+      pages.innerHTML = `
+        <div class="pdf-message pdf-error">
+          Could not display this PDF inside the app.<br><br>
+          Checked file:<br>
+          <strong>${escapeHtml(url)}</strong><br><br>
+          Use <strong>Open</strong> above to test the file directly.
         </div>
       `;
     }
   }
 
-  function selectPdf(doc) {
-    currentPdfUrl = doc.url;
-    currentPdfTitle = doc.title;
-
-    const title = document.getElementById('pdfLibraryCurrentTitle');
-    if (title) title.textContent = doc.title;
-
-    renderPdfList();
-    renderPdfDocument(doc);
-  }
-
   function changeZoom(amount) {
     zoom = Math.max(0.65, Math.min(2.2, zoom + amount));
-
-    const selected = PDF_DOCUMENTS.find(doc => doc.url === currentPdfUrl);
-    if (selected) renderPdfDocument(selected);
-  }
-
-  function openCurrentPdfTab() {
-    if (!currentPdfUrl) {
-      if (typeof setStatus === 'function') setStatus('Select a PDF first');
-      return;
-    }
-
-    window.open(currentPdfUrl, '_blank', 'noopener,noreferrer');
+    renderSelectedPdf();
   }
 
   function openPdfLibrary() {
@@ -438,12 +416,8 @@
     backdrop.classList.add('open');
     backdrop.setAttribute('aria-hidden', 'false');
 
-    renderPdfList();
-
-    if (PDF_DOCUMENTS.length) {
-      const selected = PDF_DOCUMENTS.find(doc => doc.url === currentPdfUrl) || PDF_DOCUMENTS[0];
-      selectPdf(selected);
-    }
+    renderList();
+    renderSelectedPdf();
   }
 
   function closePdfLibrary() {
@@ -454,7 +428,7 @@
     backdrop.setAttribute('aria-hidden', 'true');
   }
 
-  function addPdfLibraryButton() {
+  function addMenuButton() {
     addStyle();
 
     const shellGrid = document.querySelector('#shellHomeView .shell-grid');
@@ -470,7 +444,7 @@
       button.innerHTML = `
         <span class="shell-icon">📄</span>
         <span class="shell-label">PDF Library</span>
-        <span class="shell-note">View uploaded app PDFs</span>
+        <span class="shell-note">View PDFs stored in main directory</span>
       `;
       button.addEventListener('click', openPdfLibrary);
     }
@@ -489,11 +463,11 @@
 
   function init() {
     ensureModal();
-    addPdfLibraryButton();
+    addMenuButton();
 
-    setTimeout(addPdfLibraryButton, 250);
-    setTimeout(addPdfLibraryButton, 750);
-    setTimeout(addPdfLibraryButton, 1200);
+    setTimeout(addMenuButton, 250);
+    setTimeout(addMenuButton, 750);
+    setTimeout(addMenuButton, 1200);
   }
 
   window.openPdfLibrary = openPdfLibrary;
