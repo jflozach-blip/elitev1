@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'member-elite-portal-v8';
+const CACHE_NAME = 'member-elite-portal-v9';
 
 const APP_SHELL = [
   './',
