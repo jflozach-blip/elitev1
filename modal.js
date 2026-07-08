@@ -1,22 +1,26 @@
 'use strict';
 
 (function loadModalHelpers() {
+  const pwaInstallScript = document.createElement('script');
+  pwaInstallScript.src = 'pwa-install.js';
+  document.head.appendChild(pwaInstallScript);
+
   const eliteToolsStyle = document.createElement('link');
   eliteToolsStyle.rel = 'stylesheet';
   eliteToolsStyle.href = 'elite-tools.css';
   document.head.appendChild(eliteToolsStyle);
 
-  const modalScript = document.createElement('script');
-  modalScript.src = 'modals.js';
-  document.head.appendChild(modalScript);
-
- const eliteSplashScript = document.createElement('script');
-  eliteSplashScript.src = 'elite-splash.js';
-  document.head.appendChild(eliteSplashScript);
-
   const eliteLockScript = document.createElement('script');
   eliteLockScript.src = 'elite-lock.js';
   document.head.appendChild(eliteLockScript);
+
+  const eliteSplashScript = document.createElement('script');
+  eliteSplashScript.src = 'elite-splash.js';
+  document.head.appendChild(eliteSplashScript);
+
+  const modalScript = document.createElement('script');
+  modalScript.src = 'modals.js';
+  document.head.appendChild(modalScript);
 
   const summaryImageScript = document.createElement('script');
   summaryImageScript.src = 'summary-image.js';
