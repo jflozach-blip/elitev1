@@ -1,9 +1,8 @@
-
 'use strict';
 
-(function initSimpleNativePdfLibrary() {
-  if (window.__nativePdfLibraryLoaded) return;
-  window.__nativePdfLibraryLoaded = true;
+(function initMobileFriendlyPdfLibrary() {
+  if (window.__mobileFriendlyPdfLibraryLoaded) return;
+  window.__mobileFriendlyPdfLibraryLoaded = true;
 
   const PDF_DOCUMENTS = [
     { title: 'Driver Handbook', file: 'driver-handbook.pdf' },
@@ -12,8 +11,23 @@
 
   let selectedIndex = 0;
 
+  function isMobile() {
+    return window.matchMedia('(max-width: 760px)').matches ||
+      /iphone|ipad|ipod|android/i.test(navigator.userAgent || '');
+  }
+
   function pdfUrl(doc) {
-    return `./${doc.file}`;
+    return new URL(doc.file, window.location.href).href;
+  }
+
+  function viewerUrl(doc) {
+    const url = pdfUrl(doc);
+
+    if (isMobile()) {
+      return `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(url)}`;
+    }
+
+    return `${url}#toolbar=1&navpanes=0`;
   }
 
   function escapeHtml(value) {
@@ -27,15 +41,17 @@
   }
 
   function addStyle() {
-    if (document.getElementById('nativePdfLibraryStyles')) return;
+    if (document.getElementById('pdfLibraryMobileStyles')) return;
 
     const style = document.createElement('style');
-    style.id = 'nativePdfLibraryStyles';
+    style.id = 'pdfLibraryMobileStyles';
     style.textContent = `
       .pdf-library-modal {
-        width: min(1100px, 100%);
+        width: min(1120px, 100%);
         height: min(94dvh, 900px);
-        background: linear-gradient(180deg, #07101f, #020817) !important;
+        background:
+          radial-gradient(circle at 12% 0%, rgba(96,165,250,.24), transparent 36%),
+          linear-gradient(180deg, #07101f, #020817) !important;
         border: 1px solid rgba(147,197,253,.38) !important;
       }
 
@@ -43,8 +59,8 @@
         display: grid;
         grid-template-columns: 260px 1fr;
         gap: 12px;
-        min-height: 0;
         height: 100%;
+        min-height: 0;
       }
 
       .pdf-library-list,
@@ -83,7 +99,7 @@
 
       .pdf-library-view {
         display: grid;
-        grid-template-rows: auto 1fr;
+        grid-template-rows: auto auto 1fr;
       }
 
       .pdf-library-toolbar {
@@ -122,6 +138,17 @@
         color: #dcfce7;
       }
 
+      .pdf-mobile-note {
+        display: none;
+        padding: 10px 12px;
+        color: #fde68a;
+        background: rgba(250,204,21,.10);
+        border-bottom: 1px solid rgba(250,204,21,.22);
+        font-size: .78rem;
+        font-weight: 900;
+        line-height: 1.4;
+      }
+
       .pdf-frame-wrap {
         min-height: 0;
         height: 100%;
@@ -136,17 +163,6 @@
         background: #111827;
       }
 
-      .pdf-mobile-note {
-        display: none;
-        padding: 10px 12px;
-        color: #fde68a;
-        background: rgba(250,204,21,.10);
-        border-bottom: 1px solid rgba(250,204,21,.22);
-        font-size: .78rem;
-        font-weight: 900;
-        line-height: 1.4;
-      }
-
       @media (max-width: 760px) {
         #pdfLibraryBackdrop {
           align-items: flex-end;
@@ -155,7 +171,7 @@
 
         .pdf-library-modal {
           width: 100%;
-          height: 92dvh;
+          height: 94dvh;
           border-radius: 26px 26px 0 0 !important;
           border-left: 0 !important;
           border-right: 0 !important;
@@ -169,7 +185,7 @@
 
         .pdf-library-list {
           grid-auto-flow: column;
-          grid-auto-columns: minmax(180px, 1fr);
+          grid-auto-columns: minmax(175px, 1fr);
           overflow-x: auto;
           overflow-y: hidden;
         }
@@ -183,7 +199,7 @@
         }
 
         .pdf-frame {
-          min-height: 58dvh;
+          min-height: 62dvh;
         }
       }
     `;
@@ -218,7 +234,7 @@
             </div>
 
             <div class="pdf-mobile-note">
-              If the PDF does not show on mobile, tap <strong>Open PDF</strong>. Some mobile browsers block embedded PDF viewing.
+              Mobile uses a web PDF viewer. If the viewer stays blank, tap <strong>Open PDF</strong>.
             </div>
 
             <div class="pdf-frame-wrap">
@@ -261,7 +277,9 @@
     const doc = PDF_DOCUMENTS[selectedIndex];
     if (!doc) return;
 
-    const url = pdfUrl(doc);
+    const directUrl = pdfUrl(doc);
+    const frameUrl = viewerUrl(doc);
+
     const title = document.getElementById('pdfCurrentTitle');
     const openLink = document.getElementById('pdfOpenLink');
     const downloadLink = document.getElementById('pdfDownloadLink');
@@ -269,16 +287,14 @@
 
     if (title) title.textContent = doc.title;
 
-    if (openLink) openLink.href = url;
+    if (openLink) openLink.href = directUrl;
 
     if (downloadLink) {
-      downloadLink.href = url;
+      downloadLink.href = directUrl;
       downloadLink.download = doc.file;
     }
 
-    if (frame) {
-      frame.src = `${url}#toolbar=1&navpanes=0`;
-    }
+    if (frame) frame.src = frameUrl;
   }
 
   function openPdfLibrary() {
